@@ -59,7 +59,9 @@ bool redraw = true;
 uint8_t universe[800][600] = {0};
 bool creation = false;
 bool running = false;
+bool shuffle = false;
 bool help = true;
+int speed = 1;
 int size = 1;
 int total_frames = 0;
 
@@ -84,7 +86,8 @@ void add_cell(int mouse_x, int mouse_y) {
             y2 = y2 < SCR_HEIGHT ? y2 : SCR_HEIGHT - 1;
             for (int x = x1; x < x2; x++)
                 for (int y = y1; y < y2; y++)
-                    universe[x][y] = 1;
+                    if (!shuffle) universe[x][y] = 1;
+                    else universe[x][y] = rand() % 2;
         }
     }
 }
@@ -152,6 +155,13 @@ void logic(ALLEGRO_EVENT *event) {
             case ALLEGRO_KEY_TAB:
                 help = !help;
                 break;
+            case ALLEGRO_KEY_R:
+                shuffle = !shuffle;
+                break;
+            case ALLEGRO_KEY_F:
+                speed = speed < 4 ? speed + 1 : 1;
+                al_set_timer_speed(timer, ALLEGRO_BPS_TO_SECS(speed * 1.5 * 10));
+                break;
             }
         }
     }
@@ -184,6 +194,8 @@ void update() {
         al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 10, 0, "• Presiona Tab para mostrar/ocultar esta ayuda.");
         al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 20, 0, "• Presiona Espacio para iniciar/detener la simulación.");
         al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 30, 0, "• Presiona +/- para aumentar/reducir el tamaño del puntero del mouse: %d.", size);
+        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 40, 0, "• Presiona R para activar/desactivar el modo de células aleatorias: %s.", shuffle ? "ON" : "OFF");
+        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 50, 0, "• Presiona F para cambiar la velocidad de la simulación: x%d.", speed);
     }
 }
 
