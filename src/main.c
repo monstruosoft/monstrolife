@@ -36,6 +36,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <allegro5/allegro.h>
+#include <allegro5/allegro_ttf.h>
+#include <allegro5/allegro_font.h>
 
 
 
@@ -48,6 +50,7 @@
 ALLEGRO_EVENT_QUEUE *events = NULL;
 ALLEGRO_DISPLAY *display = NULL;
 ALLEGRO_TIMER *timer = NULL;
+ALLEGRO_FONT *font = NULL;
 ALLEGRO_EVENT event;
 bool game_over = false;
 bool redraw = true;
@@ -56,7 +59,35 @@ bool redraw = true;
 uint8_t universe[800][600] = {0};
 bool creation = false;
 bool running = false;
+bool help = true;
+int size = 1;
 int total_frames = 0;
+
+
+
+void add_cell(int mouse_x, int mouse_y) {
+    bool x_valid = (mouse_x > -1 && mouse_x < SCR_WIDTH) ? true : false;
+    bool y_valid = (mouse_y > -1 && mouse_y < SCR_HEIGHT) ? true : false;
+    if (creation && x_valid && y_valid) {
+        if (size == 1)
+            universe[mouse_x][mouse_y] = 1;
+        else {
+            int offset = size / 2;
+            int x1 = mouse_x - offset;
+            int x2 = mouse_x + offset;
+            int y1 = mouse_y - offset;
+            int y2 = mouse_y + offset;
+
+            x1 = x1 > -1 ? x1 : 0;
+            x2 = x2 < SCR_WIDTH ? x2 : SCR_WIDTH - 1;
+            y1 = y1 > -1 ? y1 : 0;
+            y2 = y2 < SCR_HEIGHT ? y2 : SCR_HEIGHT - 1;
+            for (int x = x1; x < x2; x++)
+                for (int y = y1; y < y2; y++)
+                    universe[x][y] = 1;
+        }
+    }
+}
 
 
 
@@ -108,18 +139,31 @@ void logic(ALLEGRO_EVENT *event) {
             if (event->keyboard.keycode == ALLEGRO_KEY_SPACE)
                 running = !running;
         }
+        else if (event->type == ALLEGRO_EVENT_KEY_CHAR) {
+            switch (event->keyboard.unichar) {
+            case '+':
+                size += size < 16 ? 1 : 0;
+                break;
+            case '-':
+                size -= size > 1 ? 1 : 0;
+                break;
+            }
+            switch (event->keyboard.keycode) {
+            case ALLEGRO_KEY_TAB:
+                help = !help;
+                break;
+            }
+        }
     }
     else if (event->any.source == al_get_mouse_event_source()) {
-        if (event->type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && event->mouse.button == 1)
+        if (event->type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && event->mouse.button == 1) {
             creation = true;
+            add_cell(event->mouse.x, event->mouse.y);
+        }
         else if (event->type == ALLEGRO_EVENT_MOUSE_BUTTON_UP && event->mouse.button == 1)
             creation = false;
-        else if (event->type == ALLEGRO_EVENT_MOUSE_AXES) {
-            bool x_valid = (event->mouse.x > -1 && event->mouse.x < SCR_WIDTH) ? true : false;
-            bool y_valid = (event->mouse.y > -1 && event->mouse.y < SCR_HEIGHT) ? true : false;
-            if (creation && x_valid && y_valid)
-                universe[event->mouse.x][event->mouse.y] = 1;
-        }
+        else if (event->type == ALLEGRO_EVENT_MOUSE_AXES)
+            add_cell(event->mouse.x, event->mouse.y);
     }
 }
 
@@ -134,6 +178,13 @@ void update() {
         for (int y = 0; y < SCR_HEIGHT; y++)
             if (universe[x][y] == 1)
                 al_draw_pixel(x, y, al_map_rgb(255, 255, 255));
+
+    if (help) {
+        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  0, 0, "• Usa el mouse para colocar células.");
+        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 10, 0, "• Presiona Tab para mostrar/ocultar esta ayuda.");
+        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 20, 0, "• Presiona Espacio para iniciar/detener la simulación.");
+        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 30, 0, "• Presiona +/- para aumentar/reducir el tamaño del puntero del mouse: %d.", size);
+    }
 }
 
 
@@ -151,8 +202,8 @@ void initialization() {
     display = al_create_display(SCR_WIDTH, SCR_HEIGHT);
     assert(display);
     // assert(al_init_primitives_addon());
-    // assert(al_init_font_addon());
-    // assert(al_init_ttf_addon());
+    assert(al_init_font_addon());
+    assert(al_init_ttf_addon());
 
     events = al_create_event_queue();
     assert(events);
@@ -162,6 +213,8 @@ void initialization() {
     al_register_event_source(events, al_get_keyboard_event_source());
     al_register_event_source(events, al_get_mouse_event_source());
     al_register_event_source(events, al_get_timer_event_source(timer));
+    font = al_load_ttf_font("font/ArchivoNarrow-Bold.otf", 10, 0);
+    assert(font);
     
     srand(time(NULL));
 

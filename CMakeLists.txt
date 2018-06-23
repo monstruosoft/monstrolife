@@ -6,6 +6,7 @@ OPTION (WANT_DEBUG "Build the project using debugging code" OFF)
 
 SET (BASE_DIRECTORY .)
 SET (SOURCE_DIR ${BASE_DIRECTORY}/src)
+SET (FONT_DIR ${BASE_DIRECTORY}/font)
 SET (CMAKE_C_FLAGS "-std=gnu99 -fgnu89-inline")
 PKG_CHECK_MODULES (ALLEGRO5 allegro-5 allegro_image-5 allegro_font-5 allegro_primitives-5 allegro_color-5 allegro_ttf-5)
 
@@ -14,4 +15,5 @@ LINK_DIRECTORIES (${ALLEGRO5_LIBRARY_DIRS})
 
 ADD_EXECUTABLE (main ${SOURCE_DIR}/main.c)
 TARGET_LINK_LIBRARIES(main ${ALLEGRO5_LIBRARIES} m)
+FILE (COPY ${FONT_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
