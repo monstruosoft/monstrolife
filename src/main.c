@@ -70,30 +70,36 @@ void logic(ALLEGRO_EVENT *event) {
         total_frames++;
 
         if (!running) return;
-        for (int x = 0; x < SCR_WIDTH; x++)
+        for (int x = 0; x < SCR_WIDTH; x++) {
             for (int y = 0; y < SCR_HEIGHT; y++) {
                 int count = 0;
 
             // Conteo de células
                 if (y - 1 > -1) {
-                    if ((x - 1 > -1) && (universe[x - 1][y - 1] == 1)) count++;
-                    if (universe[x][y - 1] == 1) count++;
-                    if ((x + 1 < SCR_WIDTH) && (universe[x + 1][y - 1] == 1)) count++;
+                    if ((x - 1 > -1) && (universe[x - 1][y - 1] & 1)) count++;
+                    if (universe[x][y - 1] & 1) count++;
+                    if ((x + 1 < SCR_WIDTH) && (universe[x + 1][y - 1] & 1)) count++;
                 }
-                if ((x - 1 > -1) && (universe[x - 1][y] == 1)) count++;
-                if ((x + 1 < SCR_WIDTH) && (universe[x + 1][y] == 1)) count++;
+                if ((x - 1 > -1) && (universe[x - 1][y] & 1)) count++;
+                if ((x + 1 < SCR_WIDTH) && (universe[x + 1][y] & 1)) count++;
                 if (y + 1 < SCR_HEIGHT) {
-                    if ((x - 1 > -1) && (universe[x - 1][y + 1] == 1)) count++;
-                    if (universe[x][y + 1] == 1) count++;
-                    if ((x + 1 < SCR_WIDTH) && (universe[x + 1][y + 1] == 1)) count++;
+                    if ((x - 1 > -1) && (universe[x - 1][y + 1] & 1)) count++;
+                    if (universe[x][y + 1] & 1) count++;
+                    if ((x + 1 < SCR_WIDTH) && (universe[x + 1][y + 1] & 1)) count++;
                 }
 
             // Actualización de células
-                if (universe[x][y] == 1 && (count > 3 || count < 2))
-                    universe[x][y] = 0;
-                else if (universe[x][y] == 0 && count == 3)
-                    universe[x][y] = 1;
+                if ((universe[x][y] & 1) && (count > 3 || count < 2))
+                    universe[x][y] += 0;    // La célula se muere
+                else if ((universe[x][y] & 1) && (count == 2 || count == 3))
+                    universe[x][y] += 2;    // La célula continúa con vida
+                else if (!(universe[x][y] & 1) && (count == 3))
+                    universe[x][y] += 2;    // La célula nace
             }
+        }
+        for (int x = 0; x < SCR_WIDTH; x++)
+            for (int y = 0; y < SCR_HEIGHT; y++)
+                universe[x][y] >>= 1;
     }
     else if (event->any.source == al_get_keyboard_event_source()) {
         if (event->type == ALLEGRO_EVENT_KEY_UP) {
