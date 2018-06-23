@@ -66,7 +66,10 @@ int speed = 1;
 int size = 1;
 int total_frames = 0;
 
+// Patrones predefinidos
 enum {NONE, GLIDER, LWSS, RPENTOMINO, DIEHARD, ACORN, GOSPERGLIDERGUN, INFINITE1, INFINITE2, INFINITE3};
+char *patterns[] = {"MODO NORMAL", "GLIDER", "LIGHTWEIGHT SPACESHIP", "R-PENTOMINO", "DIEHARD", "ACORN", 
+                    "GOSPER GLIDER GUN", "INFINITE 1", "INFINITE 2", "INFINITE 3"};
 char glider[3][3] = {{0,0,1},
                      {1,0,1},
                      {0,1,1}};
@@ -266,13 +269,7 @@ void logic(ALLEGRO_EVENT *event) {
                 universe[x][y] >>= 1;
     }
     else if (event->any.source == al_get_keyboard_event_source()) {
-        if (event->type == ALLEGRO_EVENT_KEY_UP) {
-            if (event->keyboard.keycode == ALLEGRO_KEY_ESCAPE)
-                game_over = true;
-            if (event->keyboard.keycode == ALLEGRO_KEY_SPACE)
-                running = !running;
-        }
-        else if (event->type == ALLEGRO_EVENT_KEY_CHAR) {
+        if (event->type == ALLEGRO_EVENT_KEY_CHAR) {
             switch (event->keyboard.unichar) {
             case '+':
                 size += size < 16 ? 1 : 0;
@@ -281,7 +278,14 @@ void logic(ALLEGRO_EVENT *event) {
                 size -= size > 1 ? 1 : 0;
                 break;
             }
+
             switch (event->keyboard.keycode) {
+            case ALLEGRO_KEY_ESCAPE:
+                game_over = true;
+                break;
+            case ALLEGRO_KEY_SPACE:
+                running = !running;
+                break;
             case ALLEGRO_KEY_TAB:
                 help = !help;
                 break;
@@ -292,35 +296,8 @@ void logic(ALLEGRO_EVENT *event) {
                 speed = speed < 4 ? speed + 1 : 1;
                 al_set_timer_speed(timer, ALLEGRO_BPS_TO_SECS(speed * 1.5 * 10));
                 break;
-            case ALLEGRO_KEY_1:
-                pattern = GLIDER;
-                break;
-            case ALLEGRO_KEY_2:
-                pattern = LWSS;
-                break;
-            case ALLEGRO_KEY_3:
-                pattern = RPENTOMINO;
-                break;
-            case ALLEGRO_KEY_4:
-                pattern = DIEHARD;
-                break;
-            case ALLEGRO_KEY_5:
-                pattern = ACORN;
-                break;
-            case ALLEGRO_KEY_6:
-                pattern = GOSPERGLIDERGUN;
-                break;
-            case ALLEGRO_KEY_7:
-                pattern = INFINITE1;
-                break;
-            case ALLEGRO_KEY_8:
-                pattern = INFINITE2;
-                break;
-            case ALLEGRO_KEY_9:
-                pattern = INFINITE3;
-                break;
-            case ALLEGRO_KEY_0:
-                pattern = NONE;
+            case ALLEGRO_KEY_P:
+                pattern = pattern < INFINITE3 ? pattern + 1 : 0;
                 break;
             }
         }
@@ -356,16 +333,7 @@ void update() {
         al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  30, 0, "• Presiona +/- para aumentar/reducir el tamaño del puntero del mouse: %d.", size);
         al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  40, 0, "• Presiona R para activar/desactivar el modo de células aleatorias: %s.", shuffle ? "ON" : "OFF");
         al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  50, 0, "• Presiona F para cambiar la velocidad de la simulación: x%d.", speed);
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  60, 0, "• Presiona 1 para insertar GLIDERS: %s.", pattern == 1 ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  70, 0, "• Presiona 2 para insertar LWSS-SPACESHIPS: %s.", pattern == 2 ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  80, 0, "• Presiona 3 para insertar R-PENTOMINOS: %s.", pattern == 3 ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  90, 0, "• Presiona 4 para insertar DIEHARDS: %s.", pattern == 4 ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 100, 0, "• Presiona 5 para insertar ACORNS: %s.", pattern == 5 ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 110, 0, "• Presiona 6 para insertar GOSPER GLIDER GUNS: %s.", pattern == 6 ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 120, 0, "• Presiona 7 para insertar INFINITE-1: %s.", pattern == 7 ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 130, 0, "• Presiona 8 para insertar INFINITE-2: %s.", pattern == 8 ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 140, 0, "• Presiona 9 para insertar INFINITE-3: %s.", pattern == 9 ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0, 150, 0, "• Presiona 0 para volver al modo normal.");
+        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  60, 0, "• Presiona P para cambiar el patrón: %s.", patterns[pattern]);
     }
 }
 
