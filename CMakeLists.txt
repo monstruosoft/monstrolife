@@ -7,7 +7,7 @@ OPTION (WANT_DEBUG "Build the project using debugging code" OFF)
 SET (BASE_DIRECTORY .)
 SET (SOURCE_DIR ${BASE_DIRECTORY}/src)
 SET (FONT_DIR ${BASE_DIRECTORY}/font)
-SET (CMAKE_C_FLAGS "-std=gnu99 -fgnu89-inline")
+SET (CMAKE_C_FLAGS "-std=gnu99 -fgnu89-inline -no-pie -pg")
 PKG_CHECK_MODULES (ALLEGRO5 allegro-5 allegro_image-5 allegro_font-5 allegro_primitives-5 allegro_color-5 allegro_ttf-5)
 
 INCLUDE_DIRECTORIES (${ALLEGRO5_INCLUDE_DIRS} ${BASE_DIRECTORY}/include)

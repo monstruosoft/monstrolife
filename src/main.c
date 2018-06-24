@@ -35,9 +35,11 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_ttf.h>
 #include <allegro5/allegro_font.h>
+#include <allegro5/allegro_primitives.h>
 
 
 
@@ -61,10 +63,14 @@ bool creation = false;
 bool running = false;
 bool shuffle = false;
 bool help = true;
+int population = 0;
 int pattern = 0;
 int speed = 1;
 int size = 1;
 int total_frames = 0;
+ALLEGRO_COLOR black, white;
+ALLEGRO_VERTEX *cells = NULL;
+int vtx_count = 0;
 
 // Patrones predefinidos
 enum {NONE, GLIDER, LWSS, RPENTOMINO, DIEHARD, ACORN, GOSPERGLIDERGUN, INFINITE1, INFINITE2, INFINITE3};
@@ -223,6 +229,11 @@ void add_cell(int mouse_x, int mouse_y) {
                     universe[x][y] = infinite3[j][i];
         }
     }
+
+    population = 0;
+    for (int x = 0; x < SCR_WIDTH; x++)
+        for (int y = 0; y < SCR_HEIGHT; y++)
+            if (universe[x][y] & 1) population++;
 }
 
 
@@ -237,42 +248,53 @@ void logic(ALLEGRO_EVENT *event) {
         total_frames++;
 
         if (!running) return;
-        for (int x = 0; x < SCR_WIDTH; x++) {
-            for (int y = 0; y < SCR_HEIGHT; y++) {
-                int count = 0;
+        for (int y = 0; y < SCR_HEIGHT; y++) {
+            bool py, ny;
+            int count = 0, counta = 0, countb = 0, countc = 0;
 
+            py = y - 1 > -1;             // Check if previous Y position (Y - 1) is valid
+            ny = y + 1 < SCR_HEIGHT;     // Check if next Y position (Y + 1) is valid
+            for (int x = 0; x < SCR_WIDTH; x++) {
+                bool nx, current;
             // Conteo de células
-                if (y - 1 > -1) {
-                    if ((x - 1 > -1) && (universe[x - 1][y - 1] & 1)) count++;
-                    if (universe[x][y - 1] & 1) count++;
-                    if ((x + 1 < SCR_WIDTH) && (universe[x + 1][y - 1] & 1)) count++;
+                nx = x + 1 < SCR_WIDTH;         // Check if next X position (X + 1) is valid
+                current = universe[x][y] & 1;   // Check the state of the current (X, Y) cell
+                if (x == 0) {
+                    if (py && (universe[x][y - 1] & 1)) countb++;
+                    if (current) countb++;
+                    if (ny && (universe[x][y + 1] & 1)) countb++;
                 }
-                if ((x - 1 > -1) && (universe[x - 1][y] & 1)) count++;
-                if ((x + 1 < SCR_WIDTH) && (universe[x + 1][y] & 1)) count++;
-                if (y + 1 < SCR_HEIGHT) {
-                    if ((x - 1 > -1) && (universe[x - 1][y + 1] & 1)) count++;
-                    if (universe[x][y + 1] & 1) count++;
-                    if ((x + 1 < SCR_WIDTH) && (universe[x + 1][y + 1] & 1)) count++;
-                }
+                if (py && nx && (universe[x + 1][y - 1] & 1)) countc++;
+                if (nx && (universe[x + 1][y] & 1)) countc++;
+                if (ny && nx && (universe[x + 1][y + 1] & 1)) countc++;
+
+                count = counta + countb + countc - current;
 
             // Actualización de células
-                if ((universe[x][y] & 1) && (count > 3 || count < 2))
+                if (current && (count > 3 || count < 2))
                     universe[x][y] += 0;    // La célula se muere
-                else if ((universe[x][y] & 1) && (count == 2 || count == 3))
+                else if (current && (count == 2 || count == 3))
                     universe[x][y] += 2;    // La célula continúa con vida
-                else if (!(universe[x][y] & 1) && (count == 3))
+                else if (!current && (count == 3))
                     universe[x][y] += 2;    // La célula nace
+
+                counta = countb;
+                countb = countc;
+                countc = 0;
             }
         }
+        population = 0;
         for (int x = 0; x < SCR_WIDTH; x++)
-            for (int y = 0; y < SCR_HEIGHT; y++)
+            for (int y = 0; y < SCR_HEIGHT; y++) {
                 universe[x][y] >>= 1;
+                if (universe[x][y] & 1) population++;
+            }
     }
     else if (event->any.source == al_get_keyboard_event_source()) {
         if (event->type == ALLEGRO_EVENT_KEY_CHAR) {
             switch (event->keyboard.unichar) {
             case '+':
-                size += size < 16 ? 1 : 0;
+                size += size < 64 ? 1 : 0;
                 break;
             case '-':
                 size -= size > 1 ? 1 : 0;
@@ -320,20 +342,32 @@ void logic(ALLEGRO_EVENT *event) {
  * Screen update.
  */
 void update() {
+    int i = 0;
+
+    if (population > vtx_count) {
+        printf("Population: %d, Vertex count: %d\n", population, vtx_count);
+        printf("Increasing vertex count to %d...\n", population);
+        free(cells);
+        vtx_count = population;
+        cells = malloc(vtx_count * sizeof(ALLEGRO_VERTEX));
+        assert(cells);
+    }
+
     al_clear_to_color(al_map_rgb(0, 0, 0));
     for (int x = 0; x < SCR_WIDTH; x++)
         for (int y = 0; y < SCR_HEIGHT; y++)
             if (universe[x][y] == 1)
-                al_draw_pixel(x, y, al_map_rgb(255, 255, 255));
+                cells[i++] = (ALLEGRO_VERTEX){.x = x, .y = y, .color = white};
+    al_draw_prim(cells, NULL, NULL, 0, population, ALLEGRO_PRIM_POINT_LIST);
 
     if (help) {
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,   0, 0, "• Usa el mouse para colocar células.");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  10, 0, "• Presiona Tab para mostrar/ocultar esta ayuda.");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  20, 0, "• Presiona Espacio para iniciar/detener la simulación.");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  30, 0, "• Presiona +/- para aumentar/reducir el tamaño del puntero del mouse: %d.", size);
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  40, 0, "• Presiona R para activar/desactivar el modo de células aleatorias: %s.", shuffle ? "ON" : "OFF");
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  50, 0, "• Presiona F para cambiar la velocidad de la simulación: x%d.", speed);
-        al_draw_textf(font, al_map_rgb(255, 255, 255), 0,  60, 0, "• Presiona P para cambiar el patrón: %s.", patterns[pattern]);
+        al_draw_textf(font, white, 0,   0, 0, "• Usa el mouse para colocar células.");
+        al_draw_textf(font, white, 0,  10, 0, "• Presiona Tab para mostrar/ocultar esta ayuda.");
+        al_draw_textf(font, white, 0,  20, 0, "• Presiona Espacio para iniciar/detener la simulación.");
+        al_draw_textf(font, white, 0,  30, 0, "• Presiona +/- para aumentar/reducir el tamaño del puntero del mouse: %d.", size);
+        al_draw_textf(font, white, 0,  40, 0, "• Presiona R para activar/desactivar el modo de células aleatorias: %s.", shuffle ? "ON" : "OFF");
+        al_draw_textf(font, white, 0,  50, 0, "• Presiona F para cambiar la velocidad de la simulación: x%d.", speed);
+        al_draw_textf(font, white, 0,  60, 0, "• Presiona P para cambiar el patrón: %s.", patterns[pattern]);
     }
 }
 
@@ -352,6 +386,7 @@ void initialization() {
     display = al_create_display(SCR_WIDTH, SCR_HEIGHT);
     assert(display);
     // assert(al_init_primitives_addon());
+    assert(al_init_primitives_addon());
     assert(al_init_font_addon());
     assert(al_init_ttf_addon());
 
@@ -369,6 +404,11 @@ void initialization() {
     srand(time(NULL));
 
 // Game initialization
+    black = al_map_rgb(0, 0, 0);
+    white = al_map_rgb(255, 255, 255);
+    vtx_count = 1024;
+    cells = malloc(vtx_count * sizeof(ALLEGRO_VERTEX));
+    assert(cells);
 }
 
 
