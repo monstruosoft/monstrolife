@@ -233,7 +233,27 @@ void add_cell(int mouse_x, int mouse_y) {
     population = 0;
     for (int x = 0; x < SCR_WIDTH; x++)
         for (int y = 0; y < SCR_HEIGHT; y++)
-            if (universe[x][y] & 1) population++;
+            if (universe[x][y] & 1)
+                populate_cells(x, y);
+}
+
+
+
+inline void populate_cells(int x, int y) {
+    population++;
+    if (population > vtx_count) {
+        ALLEGRO_VERTEX *prev_cells = cells;
+        int prev_count = vtx_count;
+
+        printf("Population: %d, Vertex count: %d\n", population, vtx_count);
+        printf("Increasing vertex count to %d...\n", vtx_count * 2);
+        vtx_count *= 2;
+        cells = malloc(vtx_count * sizeof(ALLEGRO_VERTEX));
+        assert(cells);
+        memcpy(cells, prev_cells, prev_count * sizeof(ALLEGRO_VERTEX));
+        free(prev_cells);
+    }
+    cells[population - 1] = (ALLEGRO_VERTEX){.x = x, .y = y, .color = white};
 }
 
 
@@ -248,6 +268,8 @@ void logic(ALLEGRO_EVENT *event) {
         total_frames++;
 
         if (!running) return;
+
+        population = 0;
         for (int y = 0; y < SCR_HEIGHT; y++) {
             bool py, ny;
             int count = 0, counta = 0, countb = 0, countc = 0;
@@ -273,22 +295,23 @@ void logic(ALLEGRO_EVENT *event) {
             // Actualización de células
                 if (current && (count > 3 || count < 2))
                     universe[x][y] += 0;    // La célula se muere
-                else if (current && (count == 2 || count == 3))
+                else if (current && (count == 2 || count == 3)) {
                     universe[x][y] += 2;    // La célula continúa con vida
-                else if (!current && (count == 3))
+                    populate_cells(x, y);
+                }
+                else if (!current && (count == 3)) {
                     universe[x][y] += 2;    // La célula nace
+                    populate_cells(x, y);
+                }
 
                 counta = countb;
                 countb = countc;
                 countc = 0;
             }
         }
-        population = 0;
         for (int x = 0; x < SCR_WIDTH; x++)
-            for (int y = 0; y < SCR_HEIGHT; y++) {
+            for (int y = 0; y < SCR_HEIGHT; y++)
                 universe[x][y] >>= 1;
-                if (universe[x][y] & 1) population++;
-            }
     }
     else if (event->any.source == al_get_keyboard_event_source()) {
         if (event->type == ALLEGRO_EVENT_KEY_CHAR) {
@@ -342,22 +365,7 @@ void logic(ALLEGRO_EVENT *event) {
  * Screen update.
  */
 void update() {
-    int i = 0;
-
-    if (population > vtx_count) {
-        printf("Population: %d, Vertex count: %d\n", population, vtx_count);
-        printf("Increasing vertex count to %d...\n", population);
-        free(cells);
-        vtx_count = population;
-        cells = malloc(vtx_count * sizeof(ALLEGRO_VERTEX));
-        assert(cells);
-    }
-
     al_clear_to_color(al_map_rgb(0, 0, 0));
-    for (int x = 0; x < SCR_WIDTH; x++)
-        for (int y = 0; y < SCR_HEIGHT; y++)
-            if (universe[x][y] == 1)
-                cells[i++] = (ALLEGRO_VERTEX){.x = x, .y = y, .color = white};
     al_draw_prim(cells, NULL, NULL, 0, population, ALLEGRO_PRIM_POINT_LIST);
 
     if (help) {
