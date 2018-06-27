@@ -33,6 +33,7 @@
  * Game loop.
  */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -40,6 +41,7 @@
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_ttf.h>
 #include <allegro5/allegro_font.h>
+#include <allegro5/allegro_memfile.h>
 #include <allegro5/allegro_primitives.h>
 #include "patterns.h"
 
@@ -73,14 +75,15 @@ int size = 1;
 int total_frames = 0;
 ALLEGRO_COLOR black, white;
 ALLEGRO_VERTEX *cells = NULL;
+MONSTRO_LIFE_PATTERN custom = {0};
 int vtx_count = 0;
 
 // Patrones predefinidos
-enum {NONE, GLIDER, LWSS, RPENTOMINO, DIEHARD, ACORN, GOSPERGLIDERGUN, INFINITE1, INFINITE2, INFINITE3, HALFMAX};
+enum {NONE, GLIDER, LWSS, RPENTOMINO, DIEHARD, ACORN, GOSPERGLIDERGUN, INFINITE1, INFINITE2, INFINITE3, HALFMAX, CUSTOM};
 char *pattern_names[] = {"MODO NORMAL", "GLIDER", "LIGHTWEIGHT SPACESHIP", "R-PENTOMINO", "DIEHARD", "ACORN", 
-                         "GOSPER GLIDER GUN", "INFINITE 1", "INFINITE 2", "INFINITE 3", "HALFMAX"};
+                         "GOSPER GLIDER GUN", "INFINITE 1", "INFINITE 2", "INFINITE 3", "HALFMAX", "CUSTOM"};
 MONSTRO_LIFE_PATTERN *patterns[] = {NULL, &glider, &lwss, &rpentomino, &diehard, &acorn, &gosperglidergun, 
-                                    &infinite1, &infinite2, &infinite3, &halfmax};
+                                    &infinite1, &infinite2, &infinite3, &halfmax, &custom};
 
 
 
@@ -140,7 +143,8 @@ void add_cell(int mouse_x, int mouse_y) {
         }
         else {
             MONSTRO_LIFE_PATTERN p = *patterns[pattern];
-            add_pattern(mouse_x, mouse_y, p.w, p.h, (char(*)[])p.data);
+            if (p.data != NULL)
+                add_pattern(mouse_x, mouse_y, p.w, p.h, (char(*)[])p.data);
         }
     }
 
@@ -238,7 +242,7 @@ void logic(ALLEGRO_EVENT *event) {
                 al_set_timer_speed(timer, ALLEGRO_BPS_TO_SECS(speed * 1.5 * 10));
                 break;
             case ALLEGRO_KEY_P:
-                pattern = pattern < HALFMAX ? pattern + 1 : 0;
+                pattern = pattern < CUSTOM ? pattern + 1 : 0;
                 break;
             }
         }
@@ -319,11 +323,107 @@ void initialization() {
 
 
 
+void load_pattern(char *filename) {
+    ALLEGRO_FILE *pfile = NULL;
+    char *buffer = NULL;
+    int size = 0;
+    int x, y;
+
+    char buf[256];
+    bool abort = false;
+    char *key, *value, *offset;
+    int i = 0, d = 0, count = 0, row = 0;
+    char digits[16] = {0};
+
+    assert(filename);
+    pfile = al_fopen(filename, "rb");
+    if (pfile == NULL)
+        return;
+    size = al_fsize(pfile);
+    buffer = malloc(size);
+    assert(buffer);
+    al_fread(pfile, buffer, size);
+    assert(al_fclose(pfile));
+// File is now in memory, open it as an Allegro memory file
+    pfile = al_open_memfile(buffer, size, "r");
+    while (!al_feof(pfile) && !abort) {
+        i = 0;
+        if (!al_fgets(pfile, buf, 256))
+            break;
+        switch (buf[0]) {
+        case '#':   // Comment
+            break;
+        case 'x':
+            key = strtok(buf, " ,=");
+            value = strtok(NULL, " ,=");
+            while (key != NULL && value != NULL) {
+                if (strcmp(key, "x") == 0)
+                    x = strtol(value, NULL, 10);
+                if (strcmp(key, "y") == 0)
+                    y = strtol(value, NULL, 10);
+                // Other values are ignored
+                key = strtok(NULL, " ,=");
+                value = strtok(NULL, " ,=");
+            }
+            printf("Loading custom pattern with size %d, %d ...\n", x, y);
+            custom.w = x;
+            custom.h = y;
+            if (x > SCR_WIDTH || y > SCR_HEIGHT) {
+                printf("Pattern too big, aborting...\n");
+                abort = true;
+                continue;
+            }
+            custom.data = calloc(x * y, 1);
+            assert(custom.data);
+            offset = custom.data;
+            break;
+        default:    // RLE data
+            while (buf[i] != 0) {
+                if (buf[i] == 'b') {
+                    if (d == 0) digits[0] = '1';
+                    count = atoi(digits);
+                    memset(offset, 0, count);
+                    memset(digits, 0, 16 );
+                    offset += count;
+                    d = 0;
+                }
+                else if (buf[i] == 'o') {
+                    if (d == 0) digits[0] = '1';
+                    count = atoi(digits);
+                    memset(offset, 1, count);
+                    memset(digits, 0, 16);
+                    offset += count;
+                    d = 0;
+                }
+                else if (buf[i] == '$') {
+                    if (d == 0) digits[0] = '1';
+                    count = atoi(digits);
+                    memset(digits, 0, 16);
+                    row += count;
+                    offset = custom.data + row * x;
+                    d = 0;
+                }
+                else if (isdigit(buf[i]))
+                    digits[d++] = buf[i];
+                else if (buf[i] == '!')
+                    abort = true;   // Pattern completed
+                i++;
+            }
+        }
+    }
+
+    assert(al_fclose(pfile));
+}
+
+
+
 /*
  * Game loop.
  */
-int main() {
+int main(int argc, char* argv[]) {
     initialization();
+    if (argc > 1)
+        load_pattern(argv[1]);
     
     while (!game_over) {
         al_wait_for_event(events, &event);
